@@ -10,8 +10,7 @@ import (
 )
 
 func main() {
-	fs := http.FileServer(http.Dir("assets/css"))
-	http.Handle("/css/", http.StripPrefix("/css/", fs))
+	http.Handle("/css/", middleware(styles))
 	http.Handle("/", middleware(index))
 	fmt.Println("Starting server..")
 
@@ -47,15 +46,27 @@ func middleware(next http.HandlerFunc) http.Handler {
 	return secureMiddleware.Handler(next)
 }
 
+func styles(rw http.ResponseWriter, r *http.Request) {
+	fmt.Println("Serving styles..")
+	fs := http.FileServer(http.Dir("assets/css"))
+	http.StripPrefix("/css/", fs).ServeHTTP(rw, r)
+}
+
 func index(rw http.ResponseWriter, _ *http.Request) {
-	fmt.Println("Serving index")
+	fmt.Println("Serving index..")
 	tmpl, err := template.ParseFiles("assets/html/index.html")
 	if err != nil {
-
+		rw.WriteHeader(http.StatusInternalServerError)
+		_, _ = rw.Write([]byte("Could not parse index.html template file"))
 	}
 
 	err = tmpl.Execute(rw, struct{ Title string }{Title: "My projects"})
 	if err != nil {
-		panic(err.Error())
+		rw.WriteHeader(http.StatusInternalServerError)
+		_, _ = rw.Write([]byte("Could not parse index.html template file"))
 	}
+}
+
+func GCPIndex(rw http.ResponseWriter, r *http.Request) {
+	middleware(index).ServeHTTP(rw, r)
 }
